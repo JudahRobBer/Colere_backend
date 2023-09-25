@@ -15,7 +15,7 @@ from database import (
 )
 
 #where you can access app from?
-origins = ["http://localhost:3000"]
+origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
