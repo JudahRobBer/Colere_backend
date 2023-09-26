@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException
+from typing import Annotated
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 #enables frontend to communicate with backend on different ports
 from fastapi.middleware.cors import CORSMiddleware
 from model import Todo
+from pydantic import BaseModel
 
 #backend app object
 app = FastAPI()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 from database import (
     fetch_one_todo,
@@ -24,6 +29,11 @@ app.add_middleware(
     allow_methods = ["*"], #get, post?
     allow_headers = ["*"]
 )
+
+@app.get("/items/")
+async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
+    return {"token": token}
+
 
 #indicates where the given function is accessed
 #in this case it is root
