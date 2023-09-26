@@ -1,11 +1,16 @@
 #data model
-from model import Todo
+from model import Todo, User
 
 #mongoDB driver
 import motor.motor_asyncio
 
 #connect to mongodb server connection on computer
 client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://localhost:27017')
+
+#database = client.Colere
+#collection = database.Users
+
+#each document is a user with habits as embeddded documents
 
 database = client.TodoList
 collection = database.todo
