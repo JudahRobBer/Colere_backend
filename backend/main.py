@@ -10,6 +10,12 @@ from pydantic import BaseModel
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+#to be replaced by new methods once created
+from database import  (fetch_all_todos, fetch_one_todo, create_todo, 
+                       update_todo, create_todo, remove_todo)
+
+
+
 
 # to get a string like this run:
 # openssl rand -hex 32
