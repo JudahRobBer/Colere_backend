@@ -73,7 +73,7 @@ app.add_middleware(
     allow_headers = ["*"]
 )
 
-
+"""
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
@@ -110,10 +110,10 @@ def authenticate_user(fake_db, username: str, password: str):
 
 
 """
-password flow: User enters username and password into frontend,
-frontend sends data to url in API, API verifies data, returns token
-token is stored by frontend, is sent to backend when user requests more data
-token is temporary
+#password flow: User enters username and password into frontend,
+#frontend sends data to url in API, API verifies data, returns token
+#token is stored by frontend, is sent to backend when user requests more data
+#token is temporary
 """
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -192,7 +192,7 @@ async def read_own_items(
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
 
-
+"""
 #indicates where the given function is accessed
 #in this case it is root
 @app.get("/")
