@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, SecurityScopes
+from fastapi import Depends, FastAPI, HTTPException, status, Security
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, APIKeyHeader
 #enables frontend to communicate with backend on different ports
 from fastapi.middleware.cors import CORSMiddleware
 from model import Todo
@@ -30,7 +30,7 @@ fake_users_db = {
         "full_name": "John Doe",
         "email": "johndoe@example.com",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
-        "disabled": False,
+        "disabled": True,
     }
 }
 
@@ -70,6 +70,23 @@ app.add_middleware(
     allow_methods = ["*"],
     allow_headers = ["*"]
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["*"],
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
+    if api_key_header in api_keys:
+        return api_key_header
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or missing API Key",
+    )
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -143,6 +160,10 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+@app.get("/protected")
+def protected_route(api_key: str = Security(get_api_key)):
+    # Process the request for authenticated users
+    return {"message": "Access granted!"}
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(
