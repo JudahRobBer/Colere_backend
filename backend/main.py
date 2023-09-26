@@ -155,7 +155,7 @@ async def get_current_active_user(
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
-"""
+
 @app.get("/protected")
 def protected_route(api_key: str = Security(get_api_key)):
     # Process the request for authenticated users
@@ -192,7 +192,7 @@ async def read_own_items(
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
 
-"""
+
 #indicates where the given function is accessed
 #in this case it is root
 @app.get("/")
