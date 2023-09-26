@@ -63,6 +63,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 #backend app object
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["*"],
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
+
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
@@ -127,7 +135,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         raise credentials_exception
     return user
 
-
+#handles user "disabled" label
 async def get_current_active_user(
     current_user: Annotated[User, Depends(get_current_user)]
 ):
