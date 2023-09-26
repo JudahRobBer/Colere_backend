@@ -15,7 +15,9 @@ from database import  (fetch_all_todos, fetch_one_todo, create_todo,
                        update_todo, create_todo, remove_todo)
 
 
-
+api_keys = [
+    "my_api_key"
+]
 
 # to get a string like this run:
 # openssl rand -hex 32
