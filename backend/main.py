@@ -32,7 +32,7 @@ fake_users_db = {
         "full_name": "John Doe",
         "email": "johndoe@example.com",
         "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
-        "disabled": True,
+        "disabled": False,
     }
 }
 
@@ -73,7 +73,7 @@ app.add_middleware(
     allow_headers = ["*"]
 )
 
-"""
+
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
@@ -109,12 +109,12 @@ def authenticate_user(fake_db, username: str, password: str):
     return user
 
 
-"""
+
 #password flow: User enters username and password into frontend,
 #frontend sends data to url in API, API verifies data, returns token
 #token is stored by frontend, is sent to backend when user requests more data
 #token is temporary
-"""
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -192,7 +192,7 @@ async def read_own_items(
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
 
-"""
+
 #indicates where the given function is accessed
 #in this case it is root
 @app.get("/")
