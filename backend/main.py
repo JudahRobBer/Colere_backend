@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, SecurityScopes
 #enables frontend to communicate with backend on different ports
 from fastapi.middleware.cors import CORSMiddleware
 from model import Todo
@@ -23,7 +23,7 @@ SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-
+#we need to implement users in the database
 fake_users_db = {
     "johndoe": {
         "username": "johndoe",
@@ -50,6 +50,7 @@ class User(BaseModel):
     disabled: bool | None = None
 
 
+#child of User class that stores hashed password
 class UserInDB(User):
     hashed_password: str
 
@@ -69,13 +70,15 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-
+#given a database and a username
+#return a UserInDB with a User object as input
 def get_user(db, username: str):
     if username in db:
         user_dict = db[username]
         return UserInDB(**user_dict)
 
-
+#confirm the user exists in the database and the hashed password matches the input
+#if so, return the UserInDB object
 def authenticate_user(fake_db, username: str, password: str):
     user = get_user(fake_db, username)
     if not user:
@@ -85,6 +88,12 @@ def authenticate_user(fake_db, username: str, password: str):
     return user
 
 
+"""
+password flow: User enters username and password into frontend,
+frontend sends data to url in API, API verifies data, returns token
+token is stored by frontend, is sent to backend when user requests more data
+token is temporary
+"""
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -95,13 +104,15 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
+#once the token has been created, the front end sends it
+#this token is associated with a particular user
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -110,6 +121,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
+    
     user = get_user(fake_users_db, username=token_data.username)
     if user is None:
         raise credentials_exception
@@ -164,10 +176,12 @@ def read_root():
 
 #for tutorial we need: post, update, get, delete
 
+
 @app.get("/api/todo")
 async def get_todo():
     response = await fetch_all_todos()
     return response
+
 
 @app.get("/api/todo{title}", response_model=Todo)
 async def get_todo_by_id(title):
@@ -176,6 +190,7 @@ async def get_todo_by_id(title):
         return response
     raise HTTPException(404,f"There is no todo item with this title {title}")
 
+
 @app.post("/api/todo", response_model=Todo)
 async def post_todo(todo:Todo):
     response = await create_todo(todo.model_dump())
@@ -183,12 +198,14 @@ async def post_todo(todo:Todo):
         return response
     raise HTTPException(400,"Something went wrong")
 
+
 @app.put("/api/todo{title}",response_model=Todo)
 async def put_todo(title:str,desc:str):
     response = await update_todo(title,desc)
     if response:
         return response
     raise HTTPException(404,f"There is no todo item with this title {title}")
+
 
 @app.delete("/api/todo{title}")
 async def delete_todo(title):
