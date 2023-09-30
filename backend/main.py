@@ -4,15 +4,18 @@ from fastapi import Depends, FastAPI, HTTPException, status, Security
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm, APIKeyHeader
 #enables frontend to communicate with backend on different ports
 from fastapi.middleware.cors import CORSMiddleware
-from model import Todo
+from model import Todo, User, Habit, UserInDB
 from pydantic import BaseModel
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 #to be replaced by new methods once created
-from database import  (fetch_all_todos, fetch_one_todo, create_todo, 
-                       update_todo, create_todo, remove_todo)
+#from database import  (fetch_all_todos, fetch_one_todo, create_todo, 
+ #                      update_todo, create_todo, remove_todo)
+
+
+import database
 
 
 api_keys = [
@@ -45,17 +48,6 @@ class TokenData(BaseModel):
     username: str | None = None
 
 
-class User(BaseModel):
-    username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
-
-
-#child of User class that stores hashed password
-class UserInDB(User):
-    hashed_password: str
-
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -73,7 +65,7 @@ app.add_middleware(
     allow_headers = ["*"]
 )
 
-
+"""
 api_key_header = APIKeyHeader(name="X-API-Key")
 
 def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
@@ -93,13 +85,15 @@ def get_password_hash(password):
 
 #given a database and a username
 #return a UserInDB with a User object as input
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
+#def get_user(db, username: str):
+ #   if username in db:
+  #      user_dict = db[username]
+   #     return UserInDB(**user_dict)
 
 #confirm the user exists in the database and the hashed password matches the input
 #if so, return the UserInDB object
+#this needs to be rewritten in the database file
+
 def authenticate_user(fake_db, username: str, password: str):
     user = get_user(fake_db, username)
     if not user:
@@ -109,12 +103,12 @@ def authenticate_user(fake_db, username: str, password: str):
     return user
 
 
-"""
+
 password flow: User enters username and password into frontend,
 frontend sends data to url in API, API verifies data, returns token
 token is stored by frontend, is sent to backend when user requests more data
 token is temporary
-"""
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -192,51 +186,96 @@ async def read_own_items(
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
 
-
+"""
 #indicates where the given function is accessed
 #in this case it is root
+
+
+
+#last reference method!
+#@app.put("/api/todo{title}",response_model=Todo)
+#async def put_todo(title:str,desc:str):
+ #   response = await update_todo(title,desc)
+ #   if response:
+  #      return response
+   # raise HTTPException(404,f"There is no todo item with this title {title}")
+
+
+
+
 @app.get("/")
 def read_root():
     return {"Ping":'Pong'}
 
-#for tutorial we need: post, update, get, delete
+#new routes:
+
+#post methods
+
+@app.post("/api/users",response_model=User)
+async def create_user(user:User):
+    response = await database.create_user(user.model_dump())
+    if response:
+        return response
+
+#works but returns internal server error??
+@app.post("/api/users{username}", response_model=Habit)
+async def create_user_habit(username,habit:Habit):
+    response = await database.create_user_habit(username,habit.model_dump())
+    if response:
+        return response
+    raise HTTPException(400,"Error Creating Habit")
+
+#get methods
+
+@app.get("/api/users{username}",response_model=User)
+async def get_the_FUCKING_USER(username):
+    result = await database.get_user(username)
+    if result:
+        return result
+    raise HTTPException(404, "User could not be found")
 
 
-@app.get("/api/todo")
-async def get_todo():
-    response = await fetch_all_todos()
+@app.get("/api/user{username}/habit{habit_id}", response_model = Habit)
+async def get_user_habit_by_id(username:str,habit_id:int):
+    response = await database.get_user_habit_by_id(username,int(habit_id))
+    if response:
+        return response
+    raise HTTPException(404,f"User {username} has no abit item with this id {habit_id}")
+
+@app.get("api/users{username}")
+async def get_all_user_habits(username:str):
+    response = await database.get_all_user_habits(username)
     return response
 
 
-@app.get("/api/todo{title}", response_model=Todo)
-async def get_todo_by_id(title):
-    response = await fetch_one_todo(title)
+#update methods
+
+
+#update user password
+
+
+#@app.get("api/user{user}/habit{habit}", response_model = Habit)
+#async def update_user_habit(username:str, habit:Habit):
+#    response = await database.update_user_habit(username,habit.model_dump())
+ #   if response:
+ #       return response
+  #  raise HTTPException(400,"Unable to update Habit")
+
+
+#delete methods
+
+#habit itself is passed in, rather than identifier. Change to pass in ID?
+@app.delete("/api/user{username}/habits{habit_id}")
+async def delete_user_habit(username:str,habit_id:int):
+    response = await database.delete_user_habit(username,int(habit_id))
     if response:
-        return response
-    raise HTTPException(404,f"There is no todo item with this title {title}")
+        return f"Succesfully delete habit {habit_id} from user {username}"
+    HTTPException(404,f"User {username} has no habit with this id {habit_id}")
 
-
-@app.post("/api/todo", response_model=Todo)
-async def post_todo(todo:Todo):
-    response = await create_todo(todo.model_dump())
+#works
+@app.delete("/api/users{username}")
+async def delete_user(username:str):
+    response = await database.delete_user(username)
     if response:
-        return response
-    raise HTTPException(400,"Something went wrong")
-
-
-@app.put("/api/todo{title}",response_model=Todo)
-async def put_todo(title:str,desc:str):
-    response = await update_todo(title,desc)
-    if response:
-        return response
-    raise HTTPException(404,f"There is no todo item with this title {title}")
-
-
-@app.delete("/api/todo{title}")
-async def delete_todo(title):
-    response = await remove_todo(title)
-    if response:
-        return "Succesfully deleted todo item!"
-    raise HTTPException(404,f"There is no todo item with this title {title}")
-
-#test commit
+        return f"Sucessfully deleted User"
+    raise HTTPException(404,"User was not deleted")

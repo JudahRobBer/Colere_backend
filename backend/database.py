@@ -1,5 +1,5 @@
 #data model
-from model import Todo, User
+from model import Todo, User, Habit, UserInDB
 
 #mongoDB driver
 import motor.motor_asyncio
@@ -7,43 +7,114 @@ import motor.motor_asyncio
 #connect to mongodb server connection on computer
 client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://localhost:27017')
 
-#database = client.Colere
-#collection = database.Users
 
 #each document is a user with habits as embeddded documents
+#ON JUDAH MAC
+database = client.Colere
+collection = database.Users
 
-database = client.TodoList
-collection = database.todo
+#ON REAL SERVER
+#database = client.colere
+#collection = database.users
 
-#get the todo by title from database
-async def fetch_one_todo(title):
-    document = await collection.find_one({"title":title})
-    return document
 
-#get all todos in database
-async def fetch_all_todos():
-    todos = []
-    #find with empty document gets all
-    cursor = collection.find({})
-    #async for loop?
-    async for document in cursor:
-        #dereference document pointer and cast to Todo class
-        todos.append(Todo(**document))
-    return todos
 
-async def create_todo(todo):
-    document = todo
-    result = await collection.insert_one(document)
-    return document
 
+
+
+
+#last reference method
 async def update_todo(title,desc):
     await collection.update_one({"title":title},
                                 {"$set":{"description":desc}})
     document = await collection.find_one({"title":title})
     return document
 
-async def remove_todo(title):
-    await collection.delete_one({"title":title})
+
+
+
+#new database methods
+
+async def create_user(user: dict()):
+    document = user
+    #get current user_count
+    count = await collection.count_documents({})
+    document["id"] = count
+    if document["habits"][0] == "string":
+        document["habits"] = []
+    
+    result = collection.insert_one(document)
+    return user
+
+async def delete_user(username:str):
+    result = await collection.delete_one({'username':username})
     return True
 
 
+async def get_user(username:str):
+    document = await collection.find_one({'username':username})
+    if document:
+        return document
+    return document
+
+#is this return necessary?
+async def update_user_password(username:str, password:str):
+    result = await collection.update_one({'username':username},{"$set":{"password":"updated"}})
+    document = await collection.find_one({'username':username})
+    return document
+
+
+async def create_user_habit(username:str,new_habit:dict):
+    #get the current size of habit list
+    document = await collection.find_one({'username':username})
+    habit_count = len(document["habits"])
+    new_habit["id"] = habit_count
+    
+    result = await collection.update_one({'username':username}, {"$push": {"habits":new_habit}})
+    
+    #document has been updated, and updated version must be found again
+    document = await collection.find_one({'username':username})
+
+    return document
+
+
+#find the old habit from the list using the updated_habits id
+#for this to function, YOU MUST CREATE THE UPDATED HABIT WITH THE ID OF THE OLD HABIT
+#remove the old habit
+#add the new habit
+async def update_user_habit(username:str,updated_habit:dict):
+    remove_old_habit = await collection.update_one({'username':username},{"$pull":{"habits":{"id":updated_habit["id"]}}})
+    add_new_habit =  await collection.update_one({'username':username},{"$push":{"habits":updated_habit}})
+    
+    document = await collection.find_one({'username':username},{"habits":updated_habit})
+    return document
+
+
+#deletes habit by habit id
+#passes in whole habit for consistency? should likely be changed
+async def delete_user_habit(username:str,habit_id:int):
+    result = await collection.update_one({'username':username},{"$pull":{"habits":{"id":habit_id}}})
+    return True
+   
+
+
+async def get_all_user_habits(username:str) -> list:
+    document = await collection.find_one({'username':username})
+    """
+    habits_list = document["habits"]
+    for i in range(len(habits_list)):
+        habits_list[i] = Habit(habits_list[i])
+    return habits_list
+    """
+    cursor = collection.find({'username':username},{'habits':{}})
+    habits = []
+    async for docuemnt in cursor:
+        habits.append(Habit(**document))
+    
+    return habits
+
+
+async def get_user_habit_by_id(username:str,habit_id:int):
+    habit = await collection.find_one({'username':username},{"habits":{"id":habit_id}})
+    return habit
+    

@@ -5,15 +5,20 @@ class Todo(BaseModel):
     title: str
     description: str
 
-
+#User document
 class User(BaseModel):
-    username: str
-    email: str
-    hashed_password: str
-    disabled: bool = False
-    habits: list
+    id:int
+    username:str
+    password:str
+    habits:list | None = None
+
 
 class Habit(BaseModel):
-    title:str
-    description: str
+    id: int | None = None
+    title:str  | None = None
+    description:str | None = None
+
+
+class UserInDB(User):
+    hashed_password:str
 
