@@ -58,20 +58,8 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-#given a database and a username
-#return a UserInDB with a User object as input
-#def get_user(db, username: str):
- #   if username in db:
-  #      user_dict = db[username]
-   #     return UserInDB(**user_dict)
-
-#confirm the user exists in the database and the hashed password matches the input
-#if so, return the UserInDB object
-#this needs to be rewritten in the database file
-
 
 async def authenticate_user(username: str, password: str):
-    #not working, "coroutine object has no attribute "
     user = await database.get_user(username)
     
     if not user:
@@ -115,7 +103,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         raise credentials_exception
     
     user = await database.get_user(username=token_data.username)
-    #user = User(**user)
+  
     if user is None:
         raise credentials_exception
     return user
@@ -129,10 +117,6 @@ async def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-#@app.get("/api/protected")
-#def protected_route(api_key: str = Security(get_api_key)):
-    #Process the request for authenticated accesses
- #   return {"message": "Access granted!"}
 
 #an api key security in this method causes issues in other methods
 @app.post("/token", response_model=Token)
@@ -154,27 +138,9 @@ async def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_active_user)],
-    api_key:str = Security(get_api_key)
-):
-    return current_user
-
-
-@app.get("/users/me/items/")
-async def read_own_items(
-    current_user: Annotated[User, Depends(get_current_active_user)]
-):
-    return [{"item_id": "Foo", "owner": current_user.username}]
-
-
-#indicates where the given function is accessed
-#in this case it is root
-
-
 
 #last reference method!
+#approach is to update only description, other methods would be needed to update other parts
 #@app.put("/api/todo{title}",response_model=Todo)
 #async def put_todo(title:str,desc:str):
  #   response = await update_todo(title,desc)
@@ -194,9 +160,9 @@ async def create_user(user:User,api_key: str = Security(get_api_key)):
         return response
 
 
-#works but returns internal server error??
-@app.post("/api/users", response_model=Habit)
-async def create_user_habit(current_user: Annotated[User, Depends(get_current_active_user)], habit:Habit,api_key: str = Security(get_api_key)):
+#requirement that urls with same type ("post", "get", etc) are UNIQUE
+@app.post("/api/users/habit", response_model=Habit)
+async def create_user_habit(current_user: Annotated[User, Depends(get_current_active_user)], habit:Habit, api_key:str = Security(get_api_key)):
     response = await database.create_user_habit(current_user.username,habit.model_dump())
     if response:
         return response
@@ -218,7 +184,7 @@ async def get_user_habit_by_id(current_user: Annotated[User, Depends(get_current
     response = await database.get_user_habit_by_id(current_user.username,int(habit_id))
     if response:
         return response
-    raise HTTPException(404,f"User {current_user.username} has no abit item with this id {habit_id}")
+    raise HTTPException(404,f"User {current_user.username} has no habit item with this id {habit_id}")
 
 
 @app.get("/api/users/habit")
@@ -231,14 +197,18 @@ async def get_all_user_habits(current_user: Annotated[User, Depends(get_current_
 
 
 #update user password
+@app.put("/api/users")
+async def update_user_password(current_user: Annotated[User, Depends(get_current_active_user)],password:str):
+    hashed_password = get_password_hash(password)
+    response = await database.update_user_password(current_user.username,hashed_password)
 
 
-#@app.get("api/user{user}/habit{habit}", response_model = Habit)
-#async def update_user_habit(username:str, habit:Habit):
-#    response = await database.update_user_habit(username,habit.model_dump())
- #   if response:
- #       return response
-  #  raise HTTPException(400,"Unable to update Habit")
+#@app.put("/api/user/habit", response_model = Habit)
+#async def update_user_habit(current_user: Annotated[User, Depends(get_current_active_user)], habit:Habit, api_key: str = Security(get_api_key)):
+#    response = await database.update_user_habit(current_user.username,habit.model_dump())
+#    if response:
+#        return response
+#    raise HTTPException(400,"Unable to update Habit")
 
 
 #delete methods

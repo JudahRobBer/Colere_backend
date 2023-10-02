@@ -18,21 +18,6 @@ collection = database.Users
 #collection = database.users
 
 
-
-
-
-
-
-#last reference method
-async def update_todo(title,desc):
-    await collection.update_one({"title":title},
-                                {"$set":{"description":desc}})
-    document = await collection.find_one({"title":title})
-    return document
-
-
-
-
 #new database methods
 
 async def create_user(user: dict()):
@@ -67,13 +52,14 @@ async def update_user_password(username:str, password:str):
 async def create_user_habit(username:str,new_habit:dict):
     #get the current size of habit list
     document = await collection.find_one({'username':username})
-    habit_count = len(document["habits"])
-    new_habit["id"] = habit_count
+    if document:
+        habit_count = len(document["habits"])
+        new_habit["id"] = habit_count
     
-    result = await collection.update_one({'username':username}, {"$push": {"habits":new_habit}})
+        result = await collection.update_one({'username':username}, {"$push": {"habits":new_habit}})
     
-    #document has been updated, and updated version must be found again
-    document = await collection.find_one({'username':username})
+        #document has been updated, and updated version must be found again
+        document = await collection.find_one({'username':username})
 
     return document
 
@@ -83,6 +69,12 @@ async def create_user_habit(username:str,new_habit:dict):
 #remove the old habit
 #add the new habit
 async def update_user_habit(username:str,updated_habit:dict):
+    #old_habit = await collection.find_one({"username":username},{"habits":{"id":updated_habit["id"]}})
+    #for key,value in updated_habit:
+     #   if value == None or "string":
+      #      if old_habit[str(key)] is not None:
+       #         updated_habit[key] = old_habit[str(key)]
+    
     remove_old_habit = await collection.update_one({'username':username},{"$pull":{"habits":{"id":updated_habit["id"]}}})
     add_new_habit =  await collection.update_one({'username':username},{"$push":{"habits":updated_habit}})
     
