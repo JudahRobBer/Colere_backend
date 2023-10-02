@@ -99,17 +99,11 @@ async def delete_user_habit(username:str,habit_id:int):
 
 
 async def get_all_user_habits(username:str) -> list:
-    document = await collection.find_one({'username':username})
-    """
-    habits_list = document["habits"]
-    for i in range(len(habits_list)):
-        habits_list[i] = Habit(habits_list[i])
-    return habits_list
-    """
-    cursor = collection.find({'username':username},{'habits':{}})
-    habits = []
-    async for docuemnt in cursor:
-        habits.append(Habit(**document))
+    cursor = await collection.find_one({'username':username})
+    habits = cursor["username"]
+    
+    for i in range(len(habits)):
+        habits[i] = Habit(**habits[i])
     
     return habits
 

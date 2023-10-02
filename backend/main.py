@@ -242,7 +242,7 @@ async def get_user_habit_by_id(username:str,habit_id:int):
         return response
     raise HTTPException(404,f"User {username} has no abit item with this id {habit_id}")
 
-@app.get("api/users{username}")
+@app.get("/api/users{username}")
 async def get_all_user_habits(username:str):
     response = await database.get_all_user_habits(username)
     return response
