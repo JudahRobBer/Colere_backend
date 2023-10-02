@@ -55,7 +55,7 @@ async def get_user(username:str):
     document = await collection.find_one({'username':username})
     if document:
         return document
-    return document
+    #return UserInDB(**document)
 
 #is this return necessary?
 async def update_user_password(username:str, password:str):
@@ -100,7 +100,7 @@ async def delete_user_habit(username:str,habit_id:int):
 
 async def get_all_user_habits(username:str) -> list:
     cursor = await collection.find_one({'username':username})
-    habits = cursor["username"]
+    habits = cursor["habits"]
     
     for i in range(len(habits)):
         habits[i] = Habit(**habits[i])
