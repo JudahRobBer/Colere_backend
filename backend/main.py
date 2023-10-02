@@ -73,11 +73,10 @@ def get_password_hash(password):
 async def authenticate_user(username: str, password: str):
     #not working, "coroutine object has no attribute "
     user = await database.get_user(username)
-    #user = User(**user)
     
     if not user:
         return False
-    if not verify_password(password, user["password"]):
+    if not verify_password(password, user.password):
         return False
     return user
 
@@ -115,7 +114,8 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     except JWTError:
         raise credentials_exception
     
-    user = database.get_user(username=token_data.username)
+    user = await database.get_user(username=token_data.username)
+    #user = User(**user)
     if user is None:
         raise credentials_exception
     return user
@@ -134,9 +134,11 @@ async def get_current_active_user(
     #Process the request for authenticated accesses
  #   return {"message": "Access granted!"}
 
+#an api key security in this method causes issues in other methods
 @app.post("/token", response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
+    #api_key:str = Security(get_api_key)
 ):
     user = await authenticate_user(form_data.username, form_data.password)
     if not user:
@@ -147,23 +149,24 @@ async def login_for_access_token(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["username"]}, expires_delta=access_token_expires
+        data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.get("/users/me/", response_model=User)
 async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_active_user)]
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    api_key:str = Security(get_api_key)
 ):
     return current_user
 
 
-#@app.get("/users/me/items/")
-#async def read_own_items(
- #   current_user: Annotated[User, Depends(get_current_active_user)]
-#):
- #   return [{"item_id": "Foo", "owner": current_user.username}]
+@app.get("/users/me/items/")
+async def read_own_items(
+    current_user: Annotated[User, Depends(get_current_active_user)]
+):
+    return [{"item_id": "Foo", "owner": current_user.username}]
 
 
 #indicates where the given function is accessed
@@ -181,12 +184,6 @@ async def read_users_me(
 
 
 
-
-#@app.get("/")
-#def read_root():
- #   return {"Ping":'Pong'}
-
-
 #post methods
 
 @app.post("/api/users",response_model=User)
@@ -198,9 +195,9 @@ async def create_user(user:User,api_key: str = Security(get_api_key)):
 
 
 #works but returns internal server error??
-@app.post("/api/users{username}", response_model=Habit)
-async def create_user_habit(username,habit:Habit,api_key: str = Security(get_api_key)):
-    response = await database.create_user_habit(username,habit.model_dump())
+@app.post("/api/users", response_model=Habit)
+async def create_user_habit(current_user: Annotated[User, Depends(get_current_active_user)], habit:Habit,api_key: str = Security(get_api_key)):
+    response = await database.create_user_habit(current_user.username,habit.model_dump())
     if response:
         return response
     raise HTTPException(400,"Error Creating Habit")
@@ -208,25 +205,25 @@ async def create_user_habit(username,habit:Habit,api_key: str = Security(get_api
 
 #get methods
 
-@app.get("/api/users{username}",response_model=User)
-async def get_user(username, api_key: str = Security(get_api_key)):
-    result = await database.get_user(username)
+@app.get("/api/users",response_model=User)
+async def get_user(current_user: Annotated[User, Depends(get_current_active_user)], api_key: str = Security(get_api_key)):
+    result = await database.get_user(current_user.username)
     if result:
         return result
     raise HTTPException(404, "User could not be found")
 
 
-@app.get("/api/user{username}/habit{habit_id}", response_model = Habit)
-async def get_user_habit_by_id(username:str,habit_id:int,api_key: str = Security(get_api_key)):
-    response = await database.get_user_habit_by_id(username,int(habit_id))
+@app.get("/api/users/habit{habit_id}", response_model = Habit)
+async def get_user_habit_by_id(current_user: Annotated[User, Depends(get_current_active_user)],habit_id:int,api_key: str = Security(get_api_key)):
+    response = await database.get_user_habit_by_id(current_user.username,int(habit_id))
     if response:
         return response
-    raise HTTPException(404,f"User {username} has no abit item with this id {habit_id}")
+    raise HTTPException(404,f"User {current_user.username} has no abit item with this id {habit_id}")
 
 
-@app.get("/api/users{username}/habit")
-async def get_all_user_habits(username:str,api_key: str = Security(get_api_key)):
-    response = await database.get_all_user_habits(username)
+@app.get("/api/users/habit")
+async def get_all_user_habits(current_user: Annotated[User, Depends(get_current_active_user)],api_key: str = Security(get_api_key)):
+    response = await database.get_all_user_habits(current_user.username)
     return response
 
 
@@ -247,17 +244,17 @@ async def get_all_user_habits(username:str,api_key: str = Security(get_api_key))
 #delete methods
 
 #habit itself is passed in, rather than identifier. Change to pass in ID?
-@app.delete("/api/user{username}/habits{habit_id}")
-async def delete_user_habit(username:str,habit_id:int, api_key: str = Security(get_api_key)):
-    response = await database.delete_user_habit(username,int(habit_id))
+@app.delete("/api/users/habits{habit_id}")
+async def delete_user_habit(current_user: Annotated[User, Depends(get_current_active_user)],habit_id:int, api_key: str = Security(get_api_key)):
+    response = await database.delete_user_habit(current_user.username,int(habit_id))
     if response:
-        return f"Succesfully delete habit {habit_id} from user {username}"
-    HTTPException(404,f"User {username} has no habit with this id {habit_id}")
+        return f"Succesfully delete habit {habit_id} from user {current_user.username}"
+    HTTPException(404,f"User {current_user.username} has no habit with this id {habit_id}")
 
 #works
-@app.delete("/api/users{username}")
-async def delete_user(username:str, api_key: str = Security(get_api_key)):
-    response = await database.delete_user(username)
+@app.delete("/api/users")
+async def delete_user(current_user: Annotated[User, Depends(get_current_active_user)], api_key: str = Security(get_api_key)):
+    response = await database.delete_user(current_user.username)
     if response:
         return f"Sucessfully deleted User"
     raise HTTPException(404,"User was not deleted")

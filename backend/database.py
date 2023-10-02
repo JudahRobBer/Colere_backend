@@ -54,12 +54,12 @@ async def delete_user(username:str):
 async def get_user(username:str):
     document = await collection.find_one({'username':username})
     if document:
-        return document
+        return User(**document)
     #return UserInDB(**document)
 
 #is this return necessary?
 async def update_user_password(username:str, password:str):
-    result = await collection.update_one({'username':username},{"$set":{"password":"updated"}})
+    result = await collection.update_one({'username':username},{"$set":{"password":password}})
     document = await collection.find_one({'username':username})
     return document
 

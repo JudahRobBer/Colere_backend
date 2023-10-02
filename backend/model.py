@@ -7,11 +7,11 @@ class Todo(BaseModel):
 
 #User document
 class User(BaseModel):
-    id:int
-    username:str
-    password:str
+    id:int | None = None
+    username:str | None = None
+    password:str | None = None
     habits:list | None = None
-    disabled: bool = False
+    disabled: bool | None = False
 
 
 class Habit(BaseModel):
