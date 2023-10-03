@@ -36,7 +36,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+
 api_key_header = APIKeyHeader(name="X-API-Key")
+
 
 limiter = Limiter(key_func=get_remote_address)
 app = FastAPI()
@@ -128,6 +130,11 @@ async def get_current_active_user(
     return current_user
 
 
+#camel case for type aliases follows standards
+userAlias = Annotated[User,Depends(get_current_active_user)]
+
+
+
 #an api key security in this method causes issues in other methods
 @app.post("/token", response_model=Token)
 @limiter.limit("10/minute")
@@ -152,10 +159,6 @@ async def login_for_access_token(
 
 
 
-
-
-
-
 #last reference method!
 #approach is to update only description, other methods would be needed to update other parts
 #@app.put("/api/todo{title}",response_model=Todo)
@@ -167,17 +170,20 @@ async def login_for_access_token(
 
 
 
+
 #post methods
 #makes sense to have an api key?
 @app.post("/api/users",response_model=User)
 @limiter.limit("10/minute")
 async def create_user(
         request:Request,
-        user:User,api_key: str = Security(get_api_key)):
+        user:User,
+        api_key: str = Security(get_api_key)):
     user.password = get_password_hash(user.password)
     response = await database.create_user(user.model_dump())
     if response:
         return response
+
 
 
 #requirement that urls with same type ("post", "get", etc) are UNIQUE
@@ -185,7 +191,7 @@ async def create_user(
 @limiter.limit("10/minute")
 async def create_user_habit(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)], 
+        current_user: userAlias, 
         habit:Habit,
         api_key:str = Security(get_api_key)):
     response = await database.create_user_habit(current_user.username,habit.model_dump())
@@ -200,7 +206,7 @@ async def create_user_habit(
 @limiter.limit("10/minute")
 async def get_user(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)],
+        current_user: userAlias,
         api_key:str = Security(get_api_key)):
     result = await database.get_user(current_user.username)
     if result:
@@ -212,7 +218,7 @@ async def get_user(
 @limiter.limit("10/minute")
 async def get_user_habit_by_id(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)],
+        current_user: userAlias,
         habit_id:int,
         api_key: str = Security(get_api_key)):
     response = await database.get_user_habit_by_id(current_user.username,int(habit_id))
@@ -225,7 +231,7 @@ async def get_user_habit_by_id(
 @limiter.limit("10/minute")
 async def get_all_user_habits(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)],
+        current_user: userAlias,
         api_key: str = Security(get_api_key)):
     response = await database.get_all_user_habits(current_user.username)
     return response
@@ -233,13 +239,12 @@ async def get_all_user_habits(
 
 #update methods
 
-
 #update user password
 @app.put("/api/users")
 @limiter.limit("10/minute")
 async def update_user_password(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)],
+        current_user: userAlias,
         password:str):
     hashed_password = get_password_hash(password)
     response = await database.update_user_password(current_user.username,hashed_password)
@@ -260,7 +265,7 @@ async def update_user_password(
 @limiter.limit("10/minute")
 async def delete_user_habit(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)],
+        current_user: userAlias,
         habit_id:int, 
         api_key: str = Security(get_api_key)):
     response = await database.delete_user_habit(current_user.username,int(habit_id))
@@ -268,12 +273,13 @@ async def delete_user_habit(
         return f"Succesfully delete habit {habit_id} from user {current_user.username}"
     HTTPException(404,f"User {current_user.username} has no habit with this id {habit_id}")
 
+
 #works
 @app.delete("/api/users")
 @limiter.limit("10/minute")
 async def delete_user(
         request:Request,
-        current_user: Annotated[User, Depends(get_current_active_user)], 
+        current_user: userAlias, 
         api_key: str = Security(get_api_key)):
     response = await database.delete_user(current_user.username)
     if response:
